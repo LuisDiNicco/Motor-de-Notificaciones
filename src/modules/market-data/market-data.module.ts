@@ -53,7 +53,9 @@ import { ProviderHealthTracker } from './application/ProviderHealthTracker';
 import { ProviderScorer } from './application/ProviderScorer';
 import { ProviderOrchestrator } from './application/ProviderOrchestrator';
 import { MEPCCLCalculationService } from './application/MEPCCLCalculationService';
+import { HistoricalBackfillService } from './application/HistoricalBackfillService';
 import { MEPCCLCalculationJob } from './infrastructure/primary-adapters/jobs/MEPCCLCalculationJob';
+import { HistoricalBackfillJob } from './infrastructure/primary-adapters/jobs/HistoricalBackfillJob';
 
 @Module({
   imports: [
@@ -79,6 +81,7 @@ import { MEPCCLCalculationJob } from './infrastructure/primary-adapters/jobs/MEP
     ProviderScorer,
     ProviderOrchestrator,
     MEPCCLCalculationService,
+    HistoricalBackfillService,
     {
       provide: ASSET_REPOSITORY,
       useClass: TypeOrmAssetRepository,
@@ -135,6 +138,7 @@ import { MEPCCLCalculationJob } from './infrastructure/primary-adapters/jobs/MEP
     CedearQuoteFetchJob,
     BondQuoteFetchJob,
     MEPCCLCalculationJob,
+    HistoricalBackfillJob,
     HistoricalDataJob,
     ProviderHealthJob,
     CatalogMaintenanceJob,
