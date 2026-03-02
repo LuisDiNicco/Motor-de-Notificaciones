@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { PortfolioService } from '../../../../../src/modules/portfolio/application/PortfolioService';
 import {
   IPortfolioRepository,
@@ -24,6 +25,7 @@ describe('PortfolioService', () => {
   let tradeRepository: jest.Mocked<ITradeRepository>;
   let holdingsCalculator: jest.Mocked<HoldingsCalculator>;
   let marketDataService: jest.Mocked<MarketDataService>;
+  let configService: jest.Mocked<ConfigService>;
 
   beforeEach(async () => {
     repository = {
@@ -48,6 +50,20 @@ describe('PortfolioService', () => {
       getAssetQuotes: jest.fn(),
     } as unknown as jest.Mocked<MarketDataService>;
 
+    configService = {
+      get: jest.fn(),
+    } as unknown as jest.Mocked<ConfigService>;
+
+    configService.get.mockImplementation(
+      (key: string, defaultValue?: number) => {
+        if (key === 'market.dataStaleThresholdMinutes') {
+          return 30;
+        }
+
+        return defaultValue;
+      },
+    );
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PortfolioService,
@@ -66,6 +82,10 @@ describe('PortfolioService', () => {
         {
           provide: MarketDataService,
           useValue: marketDataService,
+        },
+        {
+          provide: ConfigService,
+          useValue: configService,
         },
       ],
     }).compile();
@@ -169,6 +189,8 @@ describe('PortfolioService', () => {
       unrealizedPnl: 200,
       unrealizedPnlPct: 20,
       weight: 1,
+      priceAge: 0,
+      isStale: false,
     });
     holdingsCalculator.calculateHoldings.mockReturnValue([expectedHolding]);
 
@@ -183,7 +205,16 @@ describe('PortfolioService', () => {
     portfolio.id = 'portfolio-1';
     repository.findById.mockResolvedValue(portfolio);
 
-    tradeRepository.findByPortfolioId.mockResolvedValue([]);
+    const trade = new Trade({
+      portfolioId: 'portfolio-1',
+      assetId: 'asset-1',
+      tradeType: TradeType.BUY,
+      quantity: 1,
+      pricePerUnit: 100,
+      currency: 'ARS',
+      commission: 0,
+    });
+    tradeRepository.findByPortfolioId.mockResolvedValue([trade]);
 
     const asset = new Asset(
       'GGAL',
@@ -242,5 +273,103 @@ describe('PortfolioService', () => {
       bySector: [{ sector: 'Unknown', value: 1200, weight: 100 }],
       byCurrency: [{ currency: 'ARS', value: 1200, weight: 100 }],
     });
+  });
+
+  it('adds priceAge and stale flag based on source timestamp', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-03-02T12:00:00Z'));
+
+    const portfolio = new Portfolio({ userId: 'user-1', name: 'Main' });
+    portfolio.id = 'portfolio-1';
+    repository.findById.mockResolvedValue(portfolio);
+
+    const trade = new Trade({
+      portfolioId: 'portfolio-1',
+      assetId: 'asset-1',
+      tradeType: TradeType.BUY,
+      quantity: 1,
+      pricePerUnit: 100,
+      currency: 'ARS',
+      commission: 0,
+    });
+    tradeRepository.findByPortfolioId.mockResolvedValue([trade]);
+
+    const asset = new Asset(
+      'GGAL',
+      'Galicia',
+      AssetType.STOCK,
+      'Fin',
+      'GGAL.BA',
+    );
+    asset.id = 'asset-1';
+    marketDataService.getAssets.mockResolvedValue([asset]);
+    marketDataService.getAssetQuotes.mockResolvedValue([
+      new MarketQuote(new Date('2026-03-02T10:00:00Z'), {
+        closePrice: 125,
+        sourceTimestamp: new Date('2026-03-02T10:00:00Z'),
+      }),
+    ]);
+
+    const expectedHolding = new Holding({
+      assetId: 'asset-1',
+      ticker: 'GGAL',
+      quantity: 1,
+      avgCostBasis: 100,
+      currentPrice: 125,
+      marketValue: 125,
+      costBasis: 100,
+      unrealizedPnl: 25,
+      unrealizedPnlPct: 25,
+      weight: 1,
+    });
+    holdingsCalculator.calculateHoldings.mockReturnValue([expectedHolding]);
+
+    const result = await service.getPortfolioHoldings('user-1', 'portfolio-1');
+
+    expect(result[0]?.priceAge).toBe(120);
+    expect(result[0]?.isStale).toBe(true);
+
+    jest.useRealTimers();
+  });
+
+  it('builds interpolated performance points without zeroing missing dates', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-03-05T12:00:00Z'));
+
+    jest.spyOn(service, 'getPortfolioHoldings').mockResolvedValue([
+      new Holding({
+        assetId: 'asset-1',
+        ticker: 'GGAL',
+        quantity: 2,
+        avgCostBasis: 100,
+        currentPrice: 105,
+        marketValue: 210,
+        costBasis: 200,
+        unrealizedPnl: 10,
+        unrealizedPnlPct: 5,
+        weight: 1,
+      }),
+    ]);
+
+    marketDataService.getAssetQuotes.mockResolvedValue([
+      new MarketQuote(new Date('2026-03-02T00:00:00Z'), { closePrice: 100 }),
+      new MarketQuote(new Date('2026-03-04T00:00:00Z'), { closePrice: 110 }),
+    ]);
+
+    const result = await service.getPortfolioPerformance(
+      'user-1',
+      'portfolio-1',
+      '3D',
+    );
+
+    expect(result.points.map((point) => point.date)).toEqual([
+      '2026-03-02',
+      '2026-03-03',
+      '2026-03-04',
+      '2026-03-05',
+    ]);
+    expect(result.points.map((point) => point.value)).toEqual([
+      200, 200, 220, 220,
+    ]);
+
+    jest.useRealTimers();
   });
 });

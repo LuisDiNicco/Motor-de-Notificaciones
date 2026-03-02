@@ -21,7 +21,7 @@ El MVP fue entregado con la siguiente cobertura:
 | **Backend — Preferences** | ✅ Completo | Preferencias por usuario |
 | **Backend — Template** | ✅ Completo | 7 plantillas de notificación |
 | **Backend — Ingestion** | ✅ Completo | Event-driven con RabbitMQ |
-| **Backend — Testing** | ✅ 158/158 unit, 44/44 E2E | 36 suites, 11 E2E suites |
+| **Backend — Testing** | ✅ 160/160 unit, 44/44 E2E | 36 suites, 11 E2E suites |
 | **Frontend — Todas las fases** | ✅ Completo | Auth, dashboard, detalle, portfolio, alertas, watchlist, preferencias, notificaciones |
 | **Frontend — Testing** | ✅ 77/77 unit, 3/3 E2E | 28 archivos de test |
 | **Infraestructura** | ✅ Completo | Docker Compose, scripts de QA |
@@ -54,7 +54,7 @@ El MVP fue entregado con la siguiente cobertura:
 | R2-B10 | Noticias — Agregación RSS | ✅ Completa | Nuevo módulo `news` (hexagonal) con `NewsArticle`, `INewsRepository`, `FetchLatestNewsUseCase`, `GetNewsByTickerUseCase`, `TypeOrmNewsRepository`, `RSSFeedClient` (Ámbito/Cronista/Infobae, deduplicación por URL, ticker detection por catálogo), `NewsAggregationJob` cada 30 min + limpieza TTL 7 días, endpoint `GET /api/v1/news` (filtro `ticker`) y evento WebSocket `news:latest` |
 | R2-B11 | Enrichment de Cotizaciones | ✅ Completa | Migración en `market_quotes` para `source` + `sourceTimestamp` + `confidence`, enriquecimiento opcional propagado a dominio/repositorio/servicio, respuestas de market-data y eventos WebSocket `market:quote` con metadata backward-compatible, tests de DTO/serialización verdes |
 | R2-B12 | Alertas — Validación E2E Real | ✅ Completa | Test E2E realista `test/alert-flow-real.e2e-spec.ts`, métricas de ciclo en `AlertEvaluationConsumer` (evaluated/triggered/published/durationMs) y smoke script `scripts/alert-flow-smoke.js` |
-| R2-B13 | Portfolio — Precios Reales | ⬜ No iniciada | — |
+| R2-B13 | Portfolio — Precios Reales | ✅ Completa | `PortfolioService` usa precios más recientes con `sourceTimestamp`, holdings incluyen `priceAge` + `isStale`, performance con interpolación por último valor conocido y tests de stale/interpolación |
 | R2-B14 | QA de Datos Automatizado | ⬜ No iniciada | — |
 | R2-F01 | FreshnessIndicator | ⬜ No iniciada | — |
 | R2-F02 | Mensajes de Error Contextuales | ⬜ No iniciada | — |
@@ -71,7 +71,7 @@ El MVP fue entregado con la siguiente cobertura:
 
 | Métrica | Valor actual | Target R2 |
 |---|---|---|
-| Tests unitarios backend | 158 passing | +~50 nuevos |
+| Tests unitarios backend | 160 passing | +~50 nuevos |
 | Tests E2E backend | 44 passing | +~15 nuevos |
 | Tests unitarios frontend | 77 passing | +~30 nuevos |
 | Tests E2E frontend | 3 passing | +~5 nuevos |
@@ -99,3 +99,4 @@ El MVP fue entregado con la siguiente cobertura:
 | 2026-03-02 | R2-B10 completada: creación del módulo `news` con arquitectura hexagonal, migración `news_articles`, `RSSFeedClient` para feeds RSS/Atom de Ámbito/Cronista/Infobae con extracción de metadatos y detección de tickers contra catálogo activo, `FetchLatestNewsUseCase` con deduplicación por URL y limpieza de noticias antiguas (TTL), `NewsAggregationJob` cada 30 minutos, endpoint `GET /api/v1/news` con filtro `ticker`, emisión WebSocket `news:latest`, tests unitarios (parsing/dedup/ticker detection) y test E2E del endpoint. |
 | 2026-03-02 | R2-B11 completada: migración `AddQuoteEnrichmentFields` para `market_quotes` (`source`, `sourceTimestamp`, `confidence`), actualización de `MarketQuote`/`MarketQuoteEntity`/`TypeOrmQuoteRepository` para persistir y leer metadatos de fuente/confianza, enriquecimiento al refrescar cotizaciones en `MarketDataService` (incluye metadatos en eventos publicados y updates), actualización de payload WebSocket `market:quote` con campos opcionales y tests de serialización/DTO (`market-data.e2e` + `MarketQuote.spec`) en verde. |
 | 2026-03-02 | R2-B12 completada: validación E2E realista del flujo market→alert→notification en `test/alert-flow-real.e2e-spec.ts` (repositorios in-memory + servicios reales), extensión de `AlertEvaluationEngine` con variantes `WithStats` para medir evaluadas/disparadas, logging de métricas por ciclo en `AlertEvaluationConsumer` y script smoke operativo `scripts/alert-flow-smoke.js` con publicación real a RabbitMQ y verificación de notificaciones vía API. |
+| 2026-03-02 | R2-B13 completada: `PortfolioService` ahora calcula holdings con precio más reciente y `sourceTimestamp`, expone frescura por holding (`priceAge`, `isStale`) usando threshold configurable (`DATA_STALE_THRESHOLD_MINUTES`), y genera performance por período con interpolación de días sin cotización manteniendo último valor conocido (sin ceros artificiales); cobertura agregada en `PortfolioService.spec` para stale/interpolación. |

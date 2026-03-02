@@ -107,6 +107,10 @@ class EnvironmentVariables {
   @IsOptional()
   MARKET_TOP_MOVERS_CACHE_TTL_SECONDS: number = 60;
 
+  @IsNumber()
+  @IsOptional()
+  DATA_STALE_THRESHOLD_MINUTES: number = 30;
+
   @IsString()
   @IsOptional()
   NEWS_AGGREGATION_CRON: string = '*/30 * * * *';

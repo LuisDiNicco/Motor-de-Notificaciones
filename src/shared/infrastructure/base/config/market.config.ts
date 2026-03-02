@@ -19,6 +19,9 @@ export default registerAs('market', () => ({
   dollarCrossValidationThresholdPercent: Number(
     process.env['DOLLAR_CROSS_VALIDATION_THRESHOLD_PERCENT'] || 2,
   ),
+  dataStaleThresholdMinutes: Number(
+    process.env['DATA_STALE_THRESHOLD_MINUTES'] || 30,
+  ),
   dollarConsensusMaxDeviationPct: Number(
     process.env['DOLLAR_CONSENSUS_MAX_DEVIATION_PCT'] || 8,
   ),

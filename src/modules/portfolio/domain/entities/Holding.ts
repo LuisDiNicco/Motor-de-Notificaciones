@@ -9,6 +9,8 @@ export class Holding {
   public readonly unrealizedPnl: number;
   public readonly unrealizedPnlPct: number;
   public readonly weight: number;
+  public readonly priceAge: number | null;
+  public readonly isStale: boolean;
 
   constructor(params: {
     assetId: string;
@@ -21,6 +23,8 @@ export class Holding {
     unrealizedPnl: number;
     unrealizedPnlPct: number;
     weight: number;
+    priceAge?: number | null;
+    isStale?: boolean;
   }) {
     this.assetId = params.assetId;
     this.ticker = params.ticker;
@@ -32,5 +36,7 @@ export class Holding {
     this.unrealizedPnl = params.unrealizedPnl;
     this.unrealizedPnlPct = params.unrealizedPnlPct;
     this.weight = params.weight;
+    this.priceAge = params.priceAge ?? null;
+    this.isStale = params.isStale ?? false;
   }
 }
