@@ -128,6 +128,16 @@ describe('Market data endpoints (e2e)', () => {
       total: assets.length,
     }),
     getAssets: jest.fn().mockResolvedValue(assets),
+    getAssetDetailByTicker: jest.fn().mockResolvedValue({
+      ticker: 'GGAL',
+      name: 'Galicia',
+      assetType: AssetType.STOCK,
+      sector: 'Financiero',
+      yahooTicker: 'GGAL.BA',
+      latestQuote: null,
+      last5d: [],
+      stats30d: null,
+    }),
     getAssetByTicker: jest.fn().mockResolvedValue(assets[0]),
     searchAssets: jest.fn().mockResolvedValue([assets[0]]),
     getAssetQuotes: jest.fn().mockResolvedValue([

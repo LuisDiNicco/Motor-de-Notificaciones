@@ -37,4 +37,19 @@ export default registerAs('market', () => ({
   topMoversCacheTtlSeconds: Number(
     process.env['MARKET_TOP_MOVERS_CACHE_TTL_SECONDS'] || 60,
   ),
+  newsAggregationCron: process.env['NEWS_AGGREGATION_CRON'] || '*/30 * * * *',
+  newsRetentionDays: Number(process.env['NEWS_RETENTION_DAYS'] || 7),
+  newsHttpTimeoutMs: Number(process.env['NEWS_HTTP_TIMEOUT_MS'] || 8000),
+  newsMaxItemsPerFeed: Number(process.env['NEWS_MAX_ITEMS_PER_FEED'] || 30),
+  newsFeeds: {
+    ambito:
+      process.env['NEWS_FEED_AMBITO_URL'] ||
+      'https://www.ambito.com/rss/pages/mercados.xml',
+    cronista:
+      process.env['NEWS_FEED_CRONISTA_URL'] ||
+      'https://www.cronista.com/files/rss/news.xml',
+    infobae:
+      process.env['NEWS_FEED_INFOBAE_URL'] ||
+      'https://www.infobae.com/arc/outboundfeeds/rss/',
+  },
 }));

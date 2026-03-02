@@ -106,6 +106,37 @@ class EnvironmentVariables {
   @IsNumber()
   @IsOptional()
   MARKET_TOP_MOVERS_CACHE_TTL_SECONDS: number = 60;
+
+  @IsString()
+  @IsOptional()
+  NEWS_AGGREGATION_CRON: string = '*/30 * * * *';
+
+  @IsNumber()
+  @IsOptional()
+  NEWS_RETENTION_DAYS: number = 7;
+
+  @IsNumber()
+  @IsOptional()
+  NEWS_HTTP_TIMEOUT_MS: number = 8000;
+
+  @IsNumber()
+  @IsOptional()
+  NEWS_MAX_ITEMS_PER_FEED: number = 30;
+
+  @IsString()
+  @IsOptional()
+  NEWS_FEED_AMBITO_URL: string =
+    'https://www.ambito.com/rss/pages/mercados.xml';
+
+  @IsString()
+  @IsOptional()
+  NEWS_FEED_CRONISTA_URL: string =
+    'https://www.cronista.com/files/rss/news.xml';
+
+  @IsString()
+  @IsOptional()
+  NEWS_FEED_INFOBAE_URL: string =
+    'https://www.infobae.com/arc/outboundfeeds/rss/';
 }
 
 export function validate(config: Record<string, unknown>) {

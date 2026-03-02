@@ -23,6 +23,7 @@ import { MarketDataModule } from './modules/market-data/market-data.module';
 import { AlertModule } from './modules/alert/alert.module';
 import { WatchlistModule } from './modules/watchlist/watchlist.module';
 import { PortfolioModule } from './modules/portfolio/portfolio.module';
+import { NewsModule } from './modules/news/news.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { PortfolioModule } from './modules/portfolio/portfolio.module';
     AlertModule,
     WatchlistModule,
     PortfolioModule,
+    NewsModule,
     PreferencesModule,
     TemplateModule,
     NotificationModule,
