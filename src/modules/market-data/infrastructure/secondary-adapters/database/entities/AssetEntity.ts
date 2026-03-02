@@ -22,4 +22,10 @@ export class AssetEntity extends BaseEntity {
 
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
+
+  @Column({ type: 'date', nullable: true })
+  maturityDate!: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastCatalogCheck!: Date | null;
 }

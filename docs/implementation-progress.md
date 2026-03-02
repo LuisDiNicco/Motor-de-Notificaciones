@@ -1,6 +1,6 @@
 # NotiFinance — Progreso de Implementación
 
-**Última actualización:** 2026-02-28  
+**Última actualización:** 2026-03-02  
 
 ---
 
@@ -48,7 +48,7 @@ El MVP fue entregado con la siguiente cobertura:
 | R2-B03 | Acciones/CEDEARs — Scraper Rava | ✅ Completa | `RavaScraperClient` con robots/rate-limit/user-agent + tests con HTML fixture (sin activar como fuente principal aún) |
 | R2-B04 | Acciones/CEDEARs — Cliente BYMA Data | ✅ Completa | `BYMADataClient` con mapeo a formato interno + tests unitarios con fixture (sin activar como fuente principal aún) |
 | R2-B05 | Provider Scoring y Orquestación | ✅ Completa | `ProviderScorer` + `ProviderOrchestrator` integrados en refresh de quotes con fallback por score/confianza |
-| R2-B06 | Catálogo Dinámico y Limpieza | ⬜ No iniciada | — |
+| R2-B06 | Catálogo Dinámico y Limpieza | ✅ Completa | `CatalogMaintenanceJob` semanal, columnas de catálogo (`maturityDate`, `lastCatalogCheck`), detección de tickers nuevos en Data912, filtros de activos inactivos con override explícito |
 | R2-B07 | Renta Fija — TIR, TNA/TEA | ⬜ No iniciada | — |
 | R2-B08 | MEP/CCL — Cálculo Propio | ⬜ No iniciada | — |
 | R2-B09 | Datos Históricos — Backfill | ⬜ No iniciada | — |
@@ -93,3 +93,4 @@ El MVP fue entregado con la siguiente cobertura:
 | 2026-03-02 | R2-B03 completada: implementación de `RavaScraperClient` (cheerio), validación de `robots.txt`, rate limiting configurable, `User-Agent` configurable, registro en provider health y tests unitarios con fixture HTML de cotizaciones. |
 | 2026-03-02 | R2-B04 completada: implementación de `BYMADataClient` para `open.bymadata.com.ar`, mapeo de payload a `MarketQuote`, registro en provider health y tests unitarios con fixture JSON de respuestas. |
 | 2026-03-02 | R2-B05 completada: implementación de `ProviderScorer` (uptime/error/latencia/edad), `ProviderOrchestrator` con selección por score y fallback entre `data912`, `rava`, `byma`, `yahoo`, integración en `MarketDataService` para refresh de quotes y cobertura de tests unitarios. |
+| 2026-03-02 | R2-B06 completada: nuevas migraciones para catálogo dinámico (`AddAssetCatalogFields`, `UpdateAssetCatalogSeed`), `CatalogMaintenanceJob` semanal (desactiva vencidos, actualiza `lastCatalogCheck`, detecta tickers nuevos en Data912), soporte `includeInactive=true` en listado de activos y tests unitarios del job. |

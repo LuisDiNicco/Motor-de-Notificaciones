@@ -21,10 +21,12 @@ export class AssetController {
   }> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    const params = query.type
+      ? { type: query.type, page, limit }
+      : { page, limit };
     const result = await this.marketDataService.getAssetsPaginated({
-      type: query.type,
-      page,
-      limit,
+      ...params,
+      ...(query.includeInactive ? { includeInactive: true } : {}),
     });
 
     return {

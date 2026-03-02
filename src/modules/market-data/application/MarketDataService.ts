@@ -149,7 +149,14 @@ export class MarketDataService {
     return this.countryRiskRepository.findHistory(days);
   }
 
-  public async getAssets(type?: AssetType): Promise<Asset[]> {
+  public async getAssets(
+    type?: AssetType,
+    includeInactive = false,
+  ): Promise<Asset[]> {
+    if (includeInactive) {
+      return this.assetRepository.findAll(type, true);
+    }
+
     return this.assetRepository.findAll(type);
   }
 
@@ -157,6 +164,7 @@ export class MarketDataService {
     type?: AssetType;
     page: number;
     limit: number;
+    includeInactive?: boolean;
   }): Promise<{ data: Asset[]; total: number }> {
     return this.assetRepository.findPaginated(params);
   }

@@ -13,9 +13,16 @@ export class TypeOrmAssetRepository implements IAssetRepository {
     private readonly repository: Repository<AssetEntity>,
   ) {}
 
-  public async findAll(type?: AssetType): Promise<Asset[]> {
+  public async findAll(
+    type?: AssetType,
+    includeInactive = false,
+  ): Promise<Asset[]> {
     const entities = await this.repository.find({
-      where: type ? { assetType: type, isActive: true } : { isActive: true },
+      where: type
+        ? { assetType: type, ...(includeInactive ? {} : { isActive: true }) }
+        : includeInactive
+          ? {}
+          : { isActive: true },
       order: { ticker: 'ASC' },
     });
 
@@ -26,10 +33,16 @@ export class TypeOrmAssetRepository implements IAssetRepository {
     type?: AssetType;
     page: number;
     limit: number;
+    includeInactive?: boolean;
   }): Promise<{ data: Asset[]; total: number }> {
     const where = params.type
-      ? { assetType: params.type, isActive: true }
-      : { isActive: true };
+      ? {
+          assetType: params.type,
+          ...(params.includeInactive ? {} : { isActive: true }),
+        }
+      : params.includeInactive
+        ? {}
+        : { isActive: true };
 
     const [entities, total] = await this.repository.findAndCount({
       where,

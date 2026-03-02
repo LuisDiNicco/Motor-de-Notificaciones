@@ -47,6 +47,7 @@ import { CedearQuoteFetchJob } from './infrastructure/primary-adapters/jobs/Cede
 import { BondQuoteFetchJob } from './infrastructure/primary-adapters/jobs/BondQuoteFetchJob';
 import { HistoricalDataJob } from './infrastructure/primary-adapters/jobs/HistoricalDataJob';
 import { ProviderHealthJob } from './infrastructure/primary-adapters/jobs/ProviderHealthJob';
+import { CatalogMaintenanceJob } from './infrastructure/primary-adapters/jobs/CatalogMaintenanceJob';
 import { MarketGateway } from './infrastructure/secondary-adapters/websockets/MarketGateway';
 import { ProviderHealthTracker } from './application/ProviderHealthTracker';
 import { ProviderScorer } from './application/ProviderScorer';
@@ -132,6 +133,7 @@ import { ProviderOrchestrator } from './application/ProviderOrchestrator';
     BondQuoteFetchJob,
     HistoricalDataJob,
     ProviderHealthJob,
+    CatalogMaintenanceJob,
     MarketGateway,
   ],
   exports: [MarketDataService],

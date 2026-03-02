@@ -106,6 +106,11 @@ export class Data912QuoteClient implements IQuoteProvider {
     return quotes.filter((quote): quote is MarketQuote => quote !== null);
   }
 
+  public async fetchAvailableTickers(): Promise<string[]> {
+    const snapshot = await this.getSnapshot();
+    return Array.from(snapshot.quotesBySymbol.keys());
+  }
+
   private async getSnapshot(): Promise<SnapshotCache> {
     if (
       Date.now() < this.snapshotCache.expiresAt &&

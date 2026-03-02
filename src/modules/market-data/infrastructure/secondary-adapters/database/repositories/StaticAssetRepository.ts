@@ -33,7 +33,9 @@ export class StaticAssetRepository implements IAssetRepository {
     new Asset('GD30', 'Globales 2030', AssetType.BOND, 'Renta Fija', 'GD30.BA'),
   ];
 
-  public findAll(type?: AssetType): Promise<Asset[]> {
+  public findAll(type?: AssetType, includeInactive = false): Promise<Asset[]> {
+    void includeInactive;
+
     if (!type) {
       return Promise.resolve(this.assets);
     }
@@ -47,7 +49,10 @@ export class StaticAssetRepository implements IAssetRepository {
     type?: AssetType;
     page: number;
     limit: number;
+    includeInactive?: boolean;
   }): Promise<{ data: Asset[]; total: number }> {
+    void params.includeInactive;
+
     const filtered = params.type
       ? this.assets.filter((asset) => asset.assetType === params.type)
       : this.assets;
