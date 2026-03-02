@@ -48,6 +48,8 @@ describe('PortfolioService', () => {
     marketDataService = {
       getAssets: jest.fn(),
       getAssetQuotes: jest.fn(),
+      getLatestPersistedAssetQuote: jest.fn(),
+      getPersistedAssetQuotesByPeriod: jest.fn(),
     } as unknown as jest.Mocked<MarketDataService>;
 
     configService = {
@@ -174,6 +176,7 @@ describe('PortfolioService', () => {
     );
     asset.id = 'asset-1';
     marketDataService.getAssets.mockResolvedValue([asset]);
+    marketDataService.getLatestPersistedAssetQuote.mockResolvedValue(null);
     marketDataService.getAssetQuotes.mockResolvedValue([
       new MarketQuote(new Date(), { closePrice: 120 }),
     ]);
@@ -225,6 +228,7 @@ describe('PortfolioService', () => {
     );
     asset.id = 'asset-1';
     marketDataService.getAssets.mockResolvedValue([asset]);
+    marketDataService.getLatestPersistedAssetQuote.mockResolvedValue(null);
     marketDataService.getAssetQuotes.mockRejectedValue(
       new Error('quote provider down'),
     );
@@ -302,6 +306,7 @@ describe('PortfolioService', () => {
     );
     asset.id = 'asset-1';
     marketDataService.getAssets.mockResolvedValue([asset]);
+    marketDataService.getLatestPersistedAssetQuote.mockResolvedValue(null);
     marketDataService.getAssetQuotes.mockResolvedValue([
       new MarketQuote(new Date('2026-03-02T10:00:00Z'), {
         closePrice: 125,
@@ -353,6 +358,7 @@ describe('PortfolioService', () => {
       new MarketQuote(new Date('2026-03-02T00:00:00Z'), { closePrice: 100 }),
       new MarketQuote(new Date('2026-03-04T00:00:00Z'), { closePrice: 110 }),
     ]);
+    marketDataService.getPersistedAssetQuotesByPeriod.mockResolvedValue([]);
 
     const result = await service.getPortfolioPerformance(
       'user-1',
@@ -371,5 +377,60 @@ describe('PortfolioService', () => {
     ]);
 
     jest.useRealTimers();
+  });
+
+  it('uses latest persisted quote for holdings before provider fallback', async () => {
+    const portfolio = new Portfolio({ userId: 'user-1', name: 'Main' });
+    portfolio.id = 'portfolio-1';
+    repository.findById.mockResolvedValue(portfolio);
+
+    const trade = new Trade({
+      portfolioId: 'portfolio-1',
+      assetId: 'asset-1',
+      tradeType: TradeType.BUY,
+      quantity: 1,
+      pricePerUnit: 100,
+      currency: 'ARS',
+      commission: 0,
+    });
+    tradeRepository.findByPortfolioId.mockResolvedValue([trade]);
+
+    const asset = new Asset(
+      'GGAL',
+      'Galicia',
+      AssetType.STOCK,
+      'Fin',
+      'GGAL.BA',
+    );
+    asset.id = 'asset-1';
+    marketDataService.getAssets.mockResolvedValue([asset]);
+    marketDataService.getLatestPersistedAssetQuote.mockResolvedValue(
+      new MarketQuote(new Date('2026-03-02T09:00:00Z'), {
+        closePrice: 130,
+        sourceTimestamp: new Date('2026-03-02T09:00:00Z'),
+      }),
+    );
+
+    holdingsCalculator.calculateHoldings.mockReturnValue([
+      new Holding({
+        assetId: 'asset-1',
+        ticker: 'GGAL',
+        quantity: 1,
+        avgCostBasis: 100,
+        currentPrice: 130,
+        marketValue: 130,
+        costBasis: 100,
+        unrealizedPnl: 30,
+        unrealizedPnlPct: 30,
+        weight: 1,
+      }),
+    ]);
+
+    await service.getPortfolioHoldings('user-1', 'portfolio-1');
+
+    expect(marketDataService.getLatestPersistedAssetQuote).toHaveBeenCalledWith(
+      'GGAL',
+    );
+    expect(marketDataService.getAssetQuotes).not.toHaveBeenCalled();
   });
 });

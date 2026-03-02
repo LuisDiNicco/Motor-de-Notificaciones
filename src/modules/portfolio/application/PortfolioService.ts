@@ -104,11 +104,15 @@ export class PortfolioService {
       let priceAgeMinutes: number | null = null;
       let isStale = true;
       try {
-        const quotes = await this.marketDataService.getAssetQuotes(
-          asset.ticker,
-          2,
-        );
-        const latestQuote = this.pickLatestQuote(quotes);
+        const persistedLatestQuote =
+          await this.marketDataService.getLatestPersistedAssetQuote(
+            asset.ticker,
+          );
+        const latestQuote =
+          persistedLatestQuote ??
+          this.pickLatestQuote(
+            await this.marketDataService.getAssetQuotes(asset.ticker, 2),
+          );
         currentPrice = this.resolveQuotePrice(latestQuote);
         priceAgeMinutes = this.resolvePriceAgeMinutes(latestQuote);
         isStale =
@@ -253,10 +257,20 @@ export class PortfolioService {
 
     for (const holding of holdings) {
       try {
-        const quotes = await this.marketDataService.getAssetQuotes(
-          holding.ticker,
-          periodDays + 2,
-        );
+        const persistedQuotes =
+          await this.marketDataService.getPersistedAssetQuotesByPeriod(
+            holding.ticker,
+            startDate,
+            endDate,
+          );
+
+        const quotes =
+          persistedQuotes.length > 0
+            ? persistedQuotes
+            : await this.marketDataService.getAssetQuotes(
+                holding.ticker,
+                periodDays + 2,
+              );
 
         const series = quotes
           .map((quote) => ({

@@ -390,6 +390,36 @@ export class MarketDataService {
     }
   }
 
+  public async getLatestPersistedAssetQuote(
+    ticker: string,
+  ): Promise<MarketQuote | null> {
+    const asset = await this.getAssetByTicker(ticker);
+
+    if (!asset.id) {
+      return null;
+    }
+
+    return this.quoteRepository.findLatestByAsset(asset.id);
+  }
+
+  public async getPersistedAssetQuotesByPeriod(
+    ticker: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<MarketQuote[]> {
+    const asset = await this.getAssetByTicker(ticker);
+
+    if (!asset.id) {
+      return [];
+    }
+
+    return this.quoteRepository.findByAssetAndPeriod(
+      asset.id,
+      startDate,
+      endDate,
+    );
+  }
+
   public async getAssetStats(
     ticker: string,
     days = 30,
