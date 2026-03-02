@@ -17,6 +17,8 @@ import { IncomingMessage } from 'http';
           ? {
               level: 'info' as const,
               autoLogging: false,
+              quietReqLogger: true,
+              quietResLogger: true,
               customProps: (req: IncomingMessage) => ({
                 context: 'HTTP',
                 correlationId:
@@ -24,9 +26,11 @@ import { IncomingMessage } from 'http';
               }),
             }
           : {
-              level: 'debug' as const,
+              level: 'info' as const,
               transport: { target: 'pino-pretty', options: { colorize: true } },
               autoLogging: false,
+              quietReqLogger: true,
+              quietResLogger: true,
               customProps: (req: IncomingMessage) => ({
                 context: 'HTTP',
                 correlationId:

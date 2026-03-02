@@ -5,6 +5,7 @@ import { DollarQuote } from '../../../../domain/entities/DollarQuote';
 import { CountryRisk } from '../../../../domain/entities/CountryRisk';
 import { MarketQuote } from '../../../../domain/entities/MarketQuote';
 import { Asset } from '../../../../domain/entities/Asset';
+import { AssetNotFoundError } from '../../../../domain/errors/AssetNotFoundError';
 import { TopMoversQueryRequest } from './request/TopMoversQueryRequest';
 import { Param, Query } from '@nestjs/common';
 import { DollarType } from '../../../../domain/enums/DollarType';
@@ -308,10 +309,13 @@ export class MarketController {
       mervalValue = mervalStats.latestClose;
       mervalChangePct = mervalStats.changePctFromPeriodStart;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown error';
-      this.logger.warn(
-        `Unable to enrich market summary with MERV stats: ${message}`,
-      );
+      if (!(error instanceof AssetNotFoundError)) {
+        const message =
+          error instanceof Error ? error.message : 'unknown error';
+        this.logger.warn(
+          `Unable to enrich market summary with MERV stats: ${message}`,
+        );
+      }
       mervalValue = null;
       mervalChangePct = null;
     }

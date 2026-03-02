@@ -55,6 +55,14 @@ class EnvironmentVariables {
   @IsOptional()
   RUN_MIGRATIONS: boolean = true;
 
+  @IsBoolean()
+  @IsOptional()
+  DB_LOGGING: boolean = false;
+
+  @IsBoolean()
+  @IsOptional()
+  HTTP_REQUEST_LOGGING: boolean = false;
+
   @IsString()
   @IsOptional()
   JWT_SECRET: string = 'change-me-access-secret';

@@ -112,9 +112,10 @@ import { HistoricalBackfillJob } from './infrastructure/primary-adapters/jobs/Hi
       provide: RISK_PROVIDER,
       useClass: RiskProviderClient,
     },
+    Data912QuoteClient,
     {
       provide: QUOTE_PROVIDER,
-      useClass: Data912QuoteClient,
+      useExisting: Data912QuoteClient,
     },
     {
       provide: QUOTE_FALLBACK_PROVIDER,

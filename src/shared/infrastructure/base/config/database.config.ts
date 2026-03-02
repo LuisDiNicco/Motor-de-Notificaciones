@@ -15,5 +15,8 @@ export const getDatabaseConfig = (
     'integrations.database.runMigrations',
     true,
   ),
-  logging: configService.get('NODE_ENV') !== 'production',
+  logging:
+    String(configService.get('DB_LOGGING', 'false')).toLowerCase() === 'true'
+      ? ['query', 'error', 'warn']
+      : ['error', 'warn'],
 });

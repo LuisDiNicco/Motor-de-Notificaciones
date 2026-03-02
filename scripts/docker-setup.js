@@ -113,9 +113,48 @@ function getContainerStatus(service) {
       `docker compose -f "${DOCKER_COMPOSE_FILE}" ps ${service} --format=json`,
       { cwd: ROOT_DIR, encoding: 'utf8' }
     );
-    return result ? JSON.parse(result)[0] : null;
+    if (!result || !result.trim()) {
+      return null;
+    }
+
+    const parsed = JSON.parse(result);
+    if (Array.isArray(parsed)) {
+      return parsed[0] ?? null;
+    }
+
+    return parsed;
   } catch (error) {
     return null;
+  }
+}
+
+/**
+ * Parse conflicting container names from docker compose error output
+ */
+function extractConflictingContainerNames(output) {
+  const matches = [...output.matchAll(/container name "(\/[^"]+)"/g)];
+  const names = matches
+    .map((match) => match[1])
+    .filter(Boolean)
+    .map((name) => name.replace(/^\//, ''));
+
+  return [...new Set(names)];
+}
+
+/**
+ * Remove conflicting container so compose can recreate it
+ */
+function removeContainer(containerName) {
+  try {
+    execSync(`docker rm -f ${containerName}`, {
+      cwd: ROOT_DIR,
+      stdio: 'pipe',
+    });
+    log(`Removed conflicting container: ${containerName}`, 'WARN');
+    return true;
+  } catch (error) {
+    log(`Failed to remove conflicting container ${containerName}: ${error.message}`, 'ERROR');
+    return false;
   }
 }
 
@@ -163,17 +202,76 @@ async function waitForServices() {
  * Start Docker containers
  */
 function startContainers() {
-  try {
-    log('Starting Docker containers...', 'INFO');
-    execSync(`docker compose -f "${DOCKER_COMPOSE_FILE}" up -d`, {
-      cwd: ROOT_DIR,
-      stdio: 'inherit',
-    });
-    return true;
-  } catch (error) {
-    log(`Failed to start containers: ${error.message}`, 'ERROR');
-    return false;
+  const composeCommand = `docker compose -f "${DOCKER_COMPOSE_FILE}" up -d`;
+
+  const runComposeUp = () => {
+    try {
+      const output = execSync(composeCommand, {
+        cwd: ROOT_DIR,
+        encoding: 'utf8',
+        stdio: 'pipe',
+      });
+
+      if (output?.trim()) {
+        process.stdout.write(output);
+      }
+
+      return { success: true, output: output ?? '' };
+    } catch (error) {
+      const output = [
+        error.stdout ? String(error.stdout) : '',
+        error.stderr ? String(error.stderr) : '',
+        error.message,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      if (output.trim()) {
+        console.error(output);
+      }
+
+      return { success: false, output, error };
+    }
+  };
+
+  log('Starting Docker containers...', 'INFO');
+  const maxRecoveryAttempts = 5;
+
+  for (let attempt = 1; attempt <= maxRecoveryAttempts + 1; attempt += 1) {
+    const result = runComposeUp();
+    if (result.success) {
+      return true;
+    }
+
+    const conflictingContainers = extractConflictingContainerNames(result.output);
+
+    if (conflictingContainers.length === 0) {
+      log(`Failed to start containers: ${result.error.message}`, 'ERROR');
+      return false;
+    }
+
+    if (attempt > maxRecoveryAttempts) {
+      log(
+        `Failed after ${maxRecoveryAttempts} automatic conflict recovery attempts`,
+        'ERROR',
+      );
+      return false;
+    }
+
+    log(
+      `Detected container name conflicts: ${conflictingContainers.join(', ')}. Attempting automatic recovery (${attempt}/${maxRecoveryAttempts})...`,
+      'WARN',
+    );
+
+    const allRemoved = conflictingContainers.map(removeContainer).every(Boolean);
+    if (!allRemoved) {
+      return false;
+    }
+
+    log('Retrying Docker container startup after conflict cleanup...', 'INFO');
   }
+
+  return false;
 }
 
 /**
