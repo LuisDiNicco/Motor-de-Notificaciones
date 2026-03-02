@@ -47,4 +47,30 @@ describe('BCRAClient', () => {
       expect.any(Function),
     );
   });
+
+  it('returns direct value when present', async () => {
+    const mockedAxios = axios as jest.Mocked<typeof axios>;
+    mockedAxios.get.mockResolvedValue({
+      data: {
+        value: '1033,25',
+      },
+    });
+
+    const value = await client.fetchOfficialReference();
+
+    expect(value).toBe(1033.25);
+  });
+
+  it('throws when response has no valid reference value', async () => {
+    const mockedAxios = axios as jest.Mocked<typeof axios>;
+    mockedAxios.get.mockResolvedValue({
+      data: {
+        results: [{ valor: 0 }],
+      },
+    });
+
+    await expect(client.fetchOfficialReference()).rejects.toThrow(
+      'BCRA reference value is unavailable',
+    );
+  });
 });

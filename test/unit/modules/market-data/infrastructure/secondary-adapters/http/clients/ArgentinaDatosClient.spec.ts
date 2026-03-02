@@ -62,4 +62,35 @@ describe('ArgentinaDatosClient', () => {
     expect(quotes[1]?.type).toBe(DollarType.BLUE);
     expect(quotes[0]?.source).toBe('argentinadatos.com');
   });
+
+  it('maps aliases and filters malformed rows', async () => {
+    const mockedAxios = axios as jest.Mocked<typeof axios>;
+    mockedAxios.get.mockResolvedValue({
+      data: [
+        {
+          nombre: 'mep',
+          compra: '1.100,50',
+          venta: '1.120,50',
+          fecha: '2026-03-02T10:00:00.000Z',
+        },
+        {
+          casa: 'unknown',
+          compra: 1000,
+          venta: 1010,
+        },
+        {
+          casa: 'blue',
+          compra: 0,
+          venta: 1200,
+        },
+      ],
+    });
+
+    const quotes = await client.fetchDollarQuotes();
+
+    expect(quotes).toHaveLength(1);
+    expect(quotes[0]?.type).toBe(DollarType.MEP);
+    expect(quotes[0]?.buyPrice).toBe(1100.5);
+    expect(quotes[0]?.sellPrice).toBe(1120.5);
+  });
 });

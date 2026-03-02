@@ -1,7 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  PROVIDER_HEALTH_REPOSITORY,
-} from './IProviderHealthRepository';
+import { PROVIDER_HEALTH_REPOSITORY } from './IProviderHealthRepository';
 import type { IProviderHealthRepository } from './IProviderHealthRepository';
 import {
   ProviderCheckStatus,
@@ -18,6 +16,7 @@ export class ProviderHealthTracker {
     'bluelytics.com',
     'criptoya.com',
     'api.argentinadatos.com',
+    'api.bcra.gob.ar',
     'mercados.ambito.com',
     'data912.com',
     'yahoo-finance',

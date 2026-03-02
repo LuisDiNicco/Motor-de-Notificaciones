@@ -145,4 +145,60 @@ describe('MultiSourceDollarClient', () => {
 
     warnSpy.mockRestore();
   });
+
+  it('does not call BCRA when official consensus cannot be formed', async () => {
+    const now = new Date('2026-03-02T12:00:00.000Z');
+    const mockedAxios = axios as jest.Mocked<typeof axios>;
+    mockedAxios.get.mockImplementation(async (url: string) => {
+      if (url.includes('/dolares')) {
+        return {
+          data: [
+            {
+              casa: 'blue',
+              compra: 1180,
+              venta: 1210,
+              fechaActualizacion: now.toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (url.includes('/latest')) {
+        return {
+          data: {
+            blue: { value_buy: 1185, value_sell: 1215 },
+            last_update: now.toISOString(),
+          },
+        };
+      }
+
+      return {
+        data: {
+          blue: { bid: 1182, ask: 1212, timestamp: now.getTime() / 1000 },
+          tarjeta: { price: 1600, timestamp: now.getTime() / 1000 },
+          cripto: {
+            usdt: { bid: 1200, ask: 1220, timestamp: now.getTime() / 1000 },
+          },
+          mep: {
+            al30: { ci: { price: 1120, timestamp: now.getTime() / 1000 } },
+          },
+          ccl: {
+            al30: { ci: { price: 1150, timestamp: now.getTime() / 1000 } },
+          },
+        },
+      };
+    });
+
+    argentinaDatosClient.fetchDollarQuotes.mockResolvedValue([
+      new DollarQuote(DollarType.BLUE, 1179, 1211, now, 'argentinadatos.com'),
+    ]);
+
+    const result = await client.fetchAllDollarQuotes();
+
+    expect(result.some((quote) => quote.type === DollarType.BLUE)).toBe(true);
+    expect(result.some((quote) => quote.type === DollarType.OFICIAL)).toBe(
+      false,
+    );
+    expect(bcraClient.fetchOfficialReference).not.toHaveBeenCalled();
+  });
 });
