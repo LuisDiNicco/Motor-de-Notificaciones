@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
 import { type IQuoteProvider } from '../../../../application/IQuoteProvider';
+import { ProviderHealthTracker } from '../../../../application/ProviderHealthTracker';
 import { MarketQuote } from '../../../../domain/entities/MarketQuote';
 
 interface AlphaVantageGlobalQuote {
@@ -22,7 +23,10 @@ export class AlphaVantageClient implements IQuoteProvider {
   private readonly apiKey: string;
   private readonly baseUrl = 'https://www.alphavantage.co/query';
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly providerHealthTracker: ProviderHealthTracker,
+  ) {
     this.apiKey = this.configService.get<string>(
       'market.alphaVantageApiKey',
       '',
@@ -35,13 +39,18 @@ export class AlphaVantageClient implements IQuoteProvider {
     }
 
     const symbol = this.toAlphaSymbol(yahooTicker);
-    const { data } = await axios.get<AlphaVantageResponse>(this.baseUrl, {
-      params: {
-        function: 'GLOBAL_QUOTE',
-        symbol,
-        apikey: this.apiKey,
-      },
-    });
+    const { data } = await this.providerHealthTracker.track(
+      'alphavantage.co',
+      '/query',
+      () =>
+        axios.get<AlphaVantageResponse>(this.baseUrl, {
+          params: {
+            function: 'GLOBAL_QUOTE',
+            symbol,
+            apikey: this.apiKey,
+          },
+        }),
+    );
 
     const quote = data['Global Quote'];
     if (!quote) {

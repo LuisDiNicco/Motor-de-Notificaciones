@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
 import { type IQuoteProvider } from '../../../../application/IQuoteProvider';
+import { ProviderHealthTracker } from '../../../../application/ProviderHealthTracker';
 import { MarketQuote } from '../../../../domain/entities/MarketQuote';
+
+const yahooFinance = new YahooFinance();
 
 interface YahooQuoteLike {
   regularMarketOpen?: number;
@@ -23,10 +26,17 @@ interface YahooHistoricalLike {
 
 @Injectable()
 export class YahooFinanceClient implements IQuoteProvider {
+  constructor(private readonly providerHealthTracker: ProviderHealthTracker) {}
+
   public async fetchQuote(yahooTicker: string): Promise<MarketQuote> {
-    const quote = (await Promise.resolve(
-      yahooFinance.quote(yahooTicker),
-    )) as YahooQuoteLike;
+    const quote = await this.providerHealthTracker.track(
+      'yahoo-finance',
+      `quote:${yahooTicker}`,
+      async () =>
+        (await Promise.resolve(
+          yahooFinance.quote(yahooTicker),
+        )) as YahooQuoteLike,
+    );
     const now = new Date();
 
     return new MarketQuote(now, {
@@ -44,13 +54,18 @@ export class YahooFinanceClient implements IQuoteProvider {
     startDate: Date,
     endDate: Date,
   ): Promise<MarketQuote[]> {
-    const historical = (await Promise.resolve(
-      yahooFinance.historical(yahooTicker, {
-        period1: startDate,
-        period2: endDate,
-        interval: '1d',
-      }),
-    )) as YahooHistoricalLike[];
+    const historical = await this.providerHealthTracker.track(
+      'yahoo-finance',
+      `historical:${yahooTicker}`,
+      async () =>
+        (await Promise.resolve(
+          yahooFinance.historical(yahooTicker, {
+            period1: startDate,
+            period2: endDate,
+            interval: '1d',
+          }),
+        )) as YahooHistoricalLike[],
+    );
 
     return historical
       .filter((item) => item.date instanceof Date)

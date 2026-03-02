@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { type IQuoteProvider } from '../../../../application/IQuoteProvider';
+import { ProviderHealthTracker } from '../../../../application/ProviderHealthTracker';
 import { MarketQuote } from '../../../../domain/entities/MarketQuote';
 
 interface Data912QuoteRow {
@@ -31,6 +32,8 @@ export class Data912QuoteClient implements IQuoteProvider {
     expiresAt: 0,
     quotesBySymbol: new Map(),
   };
+
+  constructor(private readonly providerHealthTracker: ProviderHealthTracker) {}
 
   public async fetchQuote(yahooTicker: string): Promise<MarketQuote> {
     const symbol = this.normalizeSymbol(yahooTicker);
@@ -113,9 +116,11 @@ export class Data912QuoteClient implements IQuoteProvider {
 
     const responses = await Promise.allSettled(
       this.endpoints.map((url) =>
-        axios.get<Data912QuoteRow[]>(url, {
-          timeout: 8_000,
-        }),
+        this.providerHealthTracker.track('data912.com', url, () =>
+          axios.get<Data912QuoteRow[]>(url, {
+            timeout: 8_000,
+          }),
+        ),
       ),
     );
 
