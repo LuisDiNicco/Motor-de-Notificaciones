@@ -31,7 +31,9 @@ import { MarketQuote } from '../domain/entities/MarketQuote';
 import { AssetType } from '../domain/enums/AssetType';
 import { DollarType } from '../domain/enums/DollarType';
 import { AssetNotFoundError } from '../domain/errors/AssetNotFoundError';
+import { MarketDataUnavailableError } from '../domain/errors/MarketDataUnavailableError';
 import { MARKET_CACHE, type IMarketCache } from './IMarketCache';
+import { ProviderOrchestrator } from './ProviderOrchestrator';
 
 export interface MarketQuoteUpdate {
   ticker: string;
@@ -71,6 +73,8 @@ export class MarketDataService {
     private readonly fallbackQuoteProvider: IQuoteProvider | null,
     @Inject(QUOTE_REPOSITORY)
     private readonly quoteRepository: IQuoteRepository,
+    @Optional()
+    private readonly providerOrchestrator: ProviderOrchestrator | null,
     @Inject(EVENT_PUBLISHER)
     private readonly eventPublisher: IEventPublisher,
   ) {
@@ -101,7 +105,7 @@ export class MarketDataService {
       const quotes = await this.dollarProvider.fetchAllDollarQuotes();
       await this.dollarQuoteRepository.saveMany(quotes);
       return quotes;
-    } catch (error) {
+    } catch {
       this.logger.warn(
         'Dollar provider failed, trying persisted data fallback',
       );
@@ -112,7 +116,7 @@ export class MarketDataService {
         return persistedQuotes;
       }
 
-      throw error;
+      throw new MarketDataUnavailableError('DOLLAR');
     }
   }
 
@@ -121,7 +125,7 @@ export class MarketDataService {
       const risk = await this.riskProvider.fetchCountryRisk();
       await this.countryRiskRepository.save(risk);
       return risk;
-    } catch (error) {
+    } catch {
       this.logger.warn('Risk provider failed, trying persisted data fallback');
       const persistedRisk = await this.countryRiskRepository.findLatest();
 
@@ -129,7 +133,7 @@ export class MarketDataService {
         return persistedRisk;
       }
 
-      throw error;
+      throw new MarketDataUnavailableError('COUNTRY_RISK');
     }
   }
 
@@ -195,13 +199,13 @@ export class MarketDataService {
       );
       await this.quoteRepository.saveBulkQuotes(quotesWithAsset);
       return quotesWithAsset;
-    } catch (error) {
+    } catch {
       this.logger.warn(
         `Quote provider failed for ${asset.ticker}, trying persisted data fallback`,
       );
 
       if (!asset.id) {
-        throw error;
+        throw new MarketDataUnavailableError(asset.ticker);
       }
 
       const persistedQuotes = await this.quoteRepository.findByAssetAndPeriod(
@@ -214,7 +218,7 @@ export class MarketDataService {
         return persistedQuotes;
       }
 
-      throw error;
+      throw new MarketDataUnavailableError(asset.ticker);
     }
   }
 
@@ -468,9 +472,9 @@ export class MarketDataService {
         risk: '*/10 * * * *',
       },
       lastUpdate: {
-        dollar: latestDollar ? latestDollar.toISOString() : null,
-        risk: latestRisk ? latestRisk.toISOString() : null,
-        quotes: latestQuote ? latestQuote.toISOString() : null,
+        dollar: this.toIsoStringOrNull(latestDollar),
+        risk: this.toIsoStringOrNull(latestRisk),
+        quotes: this.toIsoStringOrNull(latestQuote),
       },
     };
 
@@ -570,7 +574,10 @@ export class MarketDataService {
       const chunkResults = await Promise.all(
         chunk.map(async (asset) => {
           try {
-            const quote = await this.fetchQuoteWithRetry(asset.yahooTicker);
+            const quote = await this.fetchQuoteWithRetry(
+              asset.assetType,
+              asset.yahooTicker,
+            );
             const quoteWithAsset = quote.withAssetId(asset.id!);
             await this.quoteRepository.saveBulkQuotes([quoteWithAsset]);
 
@@ -616,7 +623,18 @@ export class MarketDataService {
     };
   }
 
-  private async fetchQuoteWithRetry(yahooTicker: string): Promise<MarketQuote> {
+  private async fetchQuoteWithRetry(
+    assetType: AssetType,
+    yahooTicker: string,
+  ): Promise<MarketQuote> {
+    if (this.providerOrchestrator) {
+      const orchestrated = await this.providerOrchestrator.fetchQuote(
+        assetType,
+        yahooTicker,
+      );
+      return orchestrated.quote;
+    }
+
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= this.quoteRetryAttempts; attempt += 1) {
@@ -658,5 +676,13 @@ export class MarketDataService {
 
     const argentinaHour = (now.getUTCHours() - 3 + 24) % 24;
     return argentinaHour >= 10 && argentinaHour <= 17;
+  }
+
+  private toIsoStringOrNull(value: Date | null): string | null {
+    if (!value || Number.isNaN(value.getTime())) {
+      return null;
+    }
+
+    return value.toISOString();
   }
 }

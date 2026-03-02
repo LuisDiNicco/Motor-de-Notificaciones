@@ -9,8 +9,10 @@ import { RISK_PROVIDER } from './application/IRiskProvider';
 import { DOLLAR_QUOTE_REPOSITORY } from './application/IDollarQuoteRepository';
 import { COUNTRY_RISK_REPOSITORY } from './application/ICountryRiskRepository';
 import {
+  BYMA_QUOTE_PROVIDER,
   QUOTE_FALLBACK_PROVIDER,
   QUOTE_PROVIDER,
+  RAVA_QUOTE_PROVIDER,
 } from './application/IQuoteProvider';
 import { QUOTE_REPOSITORY } from './application/IQuoteRepository';
 import { MARKET_CACHE } from './application/IMarketCache';
@@ -32,6 +34,8 @@ import { YahooFinanceClient } from './infrastructure/secondary-adapters/http/cli
 import { MultiSourceDollarClient } from './infrastructure/secondary-adapters/http/clients/MultiSourceDollarClient';
 import { ArgentinaDatosClient } from './infrastructure/secondary-adapters/http/clients/ArgentinaDatosClient';
 import { BCRAClient } from './infrastructure/secondary-adapters/http/clients/BCRAClient';
+import { RavaScraperClient } from './infrastructure/secondary-adapters/http/clients/RavaScraperClient';
+import { BYMADataClient } from './infrastructure/secondary-adapters/http/clients/BYMADataClient';
 import { MarketController } from './infrastructure/primary-adapters/http/controllers/MarketController';
 import { AssetController } from './infrastructure/primary-adapters/http/controllers/AssetController';
 import { SearchController } from './infrastructure/primary-adapters/http/controllers/SearchController';
@@ -45,6 +49,8 @@ import { HistoricalDataJob } from './infrastructure/primary-adapters/jobs/Histor
 import { ProviderHealthJob } from './infrastructure/primary-adapters/jobs/ProviderHealthJob';
 import { MarketGateway } from './infrastructure/secondary-adapters/websockets/MarketGateway';
 import { ProviderHealthTracker } from './application/ProviderHealthTracker';
+import { ProviderScorer } from './application/ProviderScorer';
+import { ProviderOrchestrator } from './application/ProviderOrchestrator';
 
 @Module({
   imports: [
@@ -67,6 +73,8 @@ import { ProviderHealthTracker } from './application/ProviderHealthTracker';
   providers: [
     MarketDataService,
     ProviderHealthTracker,
+    ProviderScorer,
+    ProviderOrchestrator,
     {
       provide: ASSET_REPOSITORY,
       useClass: TypeOrmAssetRepository,
@@ -104,6 +112,14 @@ import { ProviderHealthTracker } from './application/ProviderHealthTracker';
     {
       provide: QUOTE_FALLBACK_PROVIDER,
       useClass: YahooFinanceClient,
+    },
+    {
+      provide: RAVA_QUOTE_PROVIDER,
+      useClass: RavaScraperClient,
+    },
+    {
+      provide: BYMA_QUOTE_PROVIDER,
+      useClass: BYMADataClient,
     },
     {
       provide: MARKET_CACHE,
