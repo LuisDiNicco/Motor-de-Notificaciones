@@ -1,17 +1,30 @@
 /* eslint-disable no-console */
 
 const BASE_URL = process.env.SMOKE_BASE_URL || 'http://localhost:3000';
-const MAX_DEVIATION_PCT = Number(process.env.ASSET_QUALITY_MAX_DEVIATION_PCT || 10);
-const SAMPLE_LIMIT = Number(process.env.ASSET_QUALITY_SAMPLE_LIMIT || 12);
+const PAGE_LIMIT = Number(process.env.ASSET_QUALITY_PAGE_LIMIT || 200);
 
-const TYPE_TO_ENDPOINT = {
-  STOCK: 'https://data912.com/live/arg_stocks',
-  CEDEAR: 'https://data912.com/live/arg_cedears',
-  BOND: 'https://data912.com/live/arg_bonds',
-  ON: 'https://data912.com/live/arg_corp',
-};
-
-const TYPES = ['STOCK', 'CEDEAR', 'BOND', 'ON'];
+const MERV_PANEL_TICKERS = [
+  'GGAL',
+  'YPF',
+  'BMA',
+  'SUPV',
+  'PAMP',
+  'TXAR',
+  'ALUA',
+  'TECO2',
+  'MIRG',
+  'CRES',
+  'LOMA',
+  'EDN',
+  'TGSU2',
+  'TRAN',
+  'CEPU',
+  'COME',
+  'VALO',
+  'BYMA',
+  'BBAR',
+  'IRSA',
+];
 
 async function fetchJson(url) {
   const response = await fetch(url);
@@ -22,111 +35,107 @@ async function fetchJson(url) {
   return response.json();
 }
 
-function toNumber(value) {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : 0;
+async function fetchAllAssets(type, includeInactive) {
+  const all = [];
+  let page = 1;
+
+  while (true) {
+    const payload = await fetchJson(
+      `${BASE_URL}/api/v1/assets?type=${type}&includeInactive=${includeInactive ? 'true' : 'false'}&page=${page}&limit=${PAGE_LIMIT}`,
+    );
+
+    const data = Array.isArray(payload?.data) ? payload.data : [];
+    const meta = payload?.meta ?? {};
+
+    all.push(...data);
+
+    const totalPages = Number(meta.totalPages || 1);
+    if (page >= totalPages) {
+      break;
+    }
+
+    page += 1;
   }
 
-  if (typeof value === 'string') {
-    const normalized = value.includes(',')
-      ? value.replace(/\./g, '').replace(',', '.').trim()
-      : value.trim();
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  return 0;
+  return all;
 }
 
-function resolveReferencePrice(row) {
-  const close = toNumber(row?.c);
-  const bid = toNumber(row?.px_bid);
-  const ask = toNumber(row?.px_ask);
-
-  if (close > 0) {
-    return close;
-  }
-
-  if (bid > 0 && ask > 0) {
-    return (bid + ask) / 2;
-  }
-
-  return bid > 0 ? bid : ask;
+function normalizeTicker(value) {
+  return String(value || '').trim().toUpperCase();
 }
 
-async function getBackendAssets(type) {
-  const payload = await fetchJson(
-    `${BASE_URL}/api/v1/assets?type=${type}&page=1&limit=${SAMPLE_LIMIT}`,
-  );
+function isMatured(dateValue) {
+  if (!dateValue) {
+    return false;
+  }
 
-  return Array.isArray(payload?.data) ? payload.data : [];
-}
+  const maturityDate = new Date(dateValue);
+  if (Number.isNaN(maturityDate.getTime())) {
+    return false;
+  }
 
-async function getBackendLatestPrice(ticker) {
-  const stats = await fetchJson(
-    `${BASE_URL}/api/v1/assets/${encodeURIComponent(ticker)}/stats?days=30`,
-  );
-
-  return toNumber(stats?.latestClose);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return maturityDate.getTime() < today.getTime();
 }
 
 async function main() {
   const failures = [];
   const checks = [];
 
-  for (const type of TYPES) {
-    const referenceRows = await fetchJson(TYPE_TO_ENDPOINT[type]);
-    const referenceMap = new Map(
-      (Array.isArray(referenceRows) ? referenceRows : [])
-        .filter((row) => typeof row?.symbol === 'string')
-        .map((row) => [String(row.symbol).toUpperCase(), row]),
-    );
+  const stockAssets = await fetchAllAssets('STOCK', true);
+  const bondAssets = await fetchAllAssets('BOND', true);
+  const lecapAssets = await fetchAllAssets('LECAP', true);
+  const boncapAssets = await fetchAllAssets('BONCAP', true);
 
-    const backendAssets = await getBackendAssets(type);
-    const sampledAssets = backendAssets.slice(0, SAMPLE_LIMIT);
+  const assets = [...stockAssets, ...bondAssets, ...lecapAssets, ...boncapAssets];
+  const activeMatured = assets.filter(
+    (asset) => asset?.isActive === true && isMatured(asset?.maturityDate),
+  );
 
-    for (const asset of sampledAssets) {
-      const ticker = String(asset?.ticker || '').toUpperCase();
-      if (!ticker) {
-        continue;
-      }
-
-      const referenceRow = referenceMap.get(ticker);
-      if (!referenceRow) {
-        checks.push(`${type} ${ticker}: no reference row in Data912`);
-        continue;
-      }
-
-      const [backendPrice, referencePrice] = await Promise.all([
-        getBackendLatestPrice(ticker),
-        Promise.resolve(resolveReferencePrice(referenceRow)),
-      ]);
-
-      if (backendPrice <= 0 || referencePrice <= 0) {
-        checks.push(
-          `${type} ${ticker}: skipped non-positive values backend=${backendPrice} ref=${referencePrice}`,
-        );
-        continue;
-      }
-
-      const deviationPct =
-        (Math.abs(backendPrice - referencePrice) / referencePrice) * 100;
-
-      checks.push(
-        `${type} ${ticker}: backend=${backendPrice.toFixed(2)} ref=${referencePrice.toFixed(2)} dev=${deviationPct.toFixed(2)}%`,
+  if (activeMatured.length > 0) {
+    for (const asset of activeMatured) {
+      failures.push(
+        `Matured asset active: ${asset.ticker} maturityDate=${asset.maturityDate}`,
       );
-
-      if (deviationPct > MAX_DEVIATION_PCT) {
-        failures.push(
-          `${type} ${ticker}: deviation ${deviationPct.toFixed(2)}% > ${MAX_DEVIATION_PCT}%`,
-        );
-      }
     }
   }
 
+  checks.push(
+    `Matured active assets: ${activeMatured.length} (total checked=${assets.length})`,
+  );
+
+  const stockByTicker = new Map(
+    stockAssets.map((asset) => [normalizeTicker(asset?.ticker), asset]),
+  );
+
+  const missingMerval = MERV_PANEL_TICKERS.filter(
+    (ticker) => !stockByTicker.has(ticker),
+  );
+
+  if (missingMerval.length > 0) {
+    failures.push(
+      `Missing Merval tickers in catalog: ${missingMerval.join(', ')}`,
+    );
+  }
+
+  const inactiveMerval = MERV_PANEL_TICKERS.filter((ticker) => {
+    const asset = stockByTicker.get(ticker);
+    return asset && asset.isActive === false;
+  });
+
+  if (inactiveMerval.length > 0) {
+    failures.push(
+      `Inactive Merval tickers detected: ${inactiveMerval.join(', ')}`,
+    );
+  }
+
+  checks.push(
+    `Merval coverage: present=${MERV_PANEL_TICKERS.length - missingMerval.length}/${MERV_PANEL_TICKERS.length}`,
+  );
+
   console.log(`ASSET_QUALITY_BASE_URL=${BASE_URL}`);
-  console.log(`ASSET_QUALITY_MAX_DEVIATION_PCT=${MAX_DEVIATION_PCT}`);
-  console.log(`ASSET_QUALITY_SAMPLE_LIMIT=${SAMPLE_LIMIT}`);
+  console.log(`ASSET_QUALITY_PAGE_LIMIT=${PAGE_LIMIT}`);
   for (const check of checks) {
     console.log(`CHECK ${check}`);
   }

@@ -1,40 +1,78 @@
 /* eslint-disable no-console */
 
+const cheerio = require('cheerio');
+
 const BASE_URL = process.env.SMOKE_BASE_URL || 'http://localhost:3000';
-const MAX_DEVIATION_PCT = Number(process.env.DOLLAR_QUALITY_MAX_DEVIATION_PCT || 10);
+const RAVA_QUOTES_URL =
+  process.env.RAVA_QUOTES_URL || 'https://www.rava.com/empresas/cotizaciones';
+const MAX_DEVIATION_PCT = Number(
+  process.env.MARKET_QUALITY_MAX_DEVIATION_PCT || 3,
+);
+const DATA_STALE_THRESHOLD_MINUTES = Number(
+  process.env.DATA_STALE_THRESHOLD_MINUTES || 30,
+);
 
-const SOURCE_PRIORITY = ['dolarapi.com', 'criptoya.com', 'bluelytics.com'];
+const MERV_TICKERS = [
+  'GGAL',
+  'YPF',
+  'BMA',
+  'SUPV',
+  'PAMP',
+  'TXAR',
+  'ALUA',
+  'TECO2',
+  'MIRG',
+  'CRES',
+  'LOMA',
+  'EDN',
+  'TGSU2',
+  'TRAN',
+  'CEPU',
+  'COME',
+  'VALO',
+  'BYMA',
+  'BBAR',
+  'IRSA',
+];
 
-const TYPES = ['OFICIAL', 'BLUE', 'MEP', 'CCL', 'TARJETA', 'CRIPTO'];
+async function fetchText(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`${url} -> HTTP ${response.status}`);
+  }
+
+  return response.text();
+}
 
 async function fetchJson(url) {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`${url} -> HTTP ${response.status}`);
   }
+
   return response.json();
 }
 
-function median(values) {
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-
-  if (sorted.length % 2 === 0) {
-    return (sorted[mid - 1] + sorted[mid]) / 2;
-  }
-
-  return sorted[mid];
-}
-
-function parseNumber(value) {
+function toNumber(value) {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : 0;
   }
 
   if (typeof value === 'string') {
-    const normalized = value.includes(',')
-      ? value.replace(/\./g, '').replace(',', '.').trim()
-      : value.trim();
+    const cleaned = value.replace(/\s/g, '');
+    if (!cleaned) {
+      return 0;
+    }
+
+    let normalized = cleaned;
+    if (cleaned.includes(',') && cleaned.includes('.')) {
+      normalized = cleaned.replace(/\./g, '').replace(',', '.');
+    } else if (cleaned.includes(',')) {
+      normalized = cleaned.replace(',', '.');
+    } else if (cleaned.split('.').length > 2) {
+      normalized = cleaned.replace(/\./g, '');
+    }
+
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : 0;
   }
@@ -42,132 +80,142 @@ function parseNumber(value) {
   return 0;
 }
 
-function toReferenceMap(dolarApi, bluelytics, criptoya) {
-  const byType = new Map();
-
-  for (const item of dolarApi) {
-    const casa = String(item.casa || '').toLowerCase();
-    let type = null;
-    if (casa === 'oficial') type = 'OFICIAL';
-    if (casa === 'blue') type = 'BLUE';
-    if (casa === 'bolsa') type = 'MEP';
-    if (casa === 'contadoconliqui') type = 'CCL';
-    if (casa === 'tarjeta') type = 'TARJETA';
-    if (casa === 'cripto') type = 'CRIPTO';
-
-    if (!type) continue;
-    const values = byType.get(type) || [];
-    values.push({
-      source: 'dolarapi.com',
-      buy: parseNumber(item.compra),
-      sell: parseNumber(item.venta),
-    });
-    byType.set(type, values);
-  }
-
-  const bluelyticsPairs = [
-    ['OFICIAL', bluelytics?.oficial],
-    ['BLUE', bluelytics?.blue],
-  ];
-
-  for (const [type, quote] of bluelyticsPairs) {
-    if (!quote) continue;
-    const values = byType.get(type) || [];
-    values.push({
-      source: 'bluelytics.com',
-      buy: Number(quote.value_buy || 0),
-      sell: Number(quote.value_sell || 0),
-    });
-    byType.set(type, values);
-  }
-
-  const mep = criptoya?.mep?.al30?.ci || criptoya?.mep?.gd30?.ci;
-  const ccl = criptoya?.ccl?.al30?.ci || criptoya?.ccl?.gd30?.ci;
-  const criptoPairs = [
-    ['OFICIAL', criptoya?.oficial?.bid, criptoya?.oficial?.ask],
-    ['BLUE', criptoya?.blue?.bid, criptoya?.blue?.ask],
-    ['TARJETA', criptoya?.tarjeta?.price, criptoya?.tarjeta?.price],
-    ['CRIPTO', criptoya?.cripto?.usdt?.bid, criptoya?.cripto?.usdt?.ask],
-    ['MEP', mep?.price, mep?.price],
-    ['CCL', ccl?.price, ccl?.price],
-  ];
-
-  for (const [type, buy, sell] of criptoPairs) {
-    const parsedBuy = Number(buy || 0);
-    const parsedSell = Number(sell || 0);
-    if (!Number.isFinite(parsedBuy) || !Number.isFinite(parsedSell) || parsedBuy <= 0 || parsedSell <= 0) {
-      continue;
-    }
-
-    const values = byType.get(type) || [];
-    values.push({ source: 'criptoya.com', buy: parsedBuy, sell: parsedSell });
-    byType.set(type, values);
-  }
-
-  return byType;
+function normalizeTicker(value) {
+  return String(value || '')
+    .replace('.BA', '')
+    .trim()
+    .toUpperCase();
 }
 
-function buildSourceDetails(references) {
-  return [...references]
-    .sort(
-      (left, right) =>
-        SOURCE_PRIORITY.indexOf(left.source) - SOURCE_PRIORITY.indexOf(right.source),
-    )
-    .map((item) => `${item.source}(buy=${item.buy.toFixed(2)},sell=${item.sell.toFixed(2)})`)
-    .join(', ');
+function parseRavaSnapshot(html) {
+  const $ = cheerio.load(html);
+  const referenceByTicker = new Map();
+
+  $('table tbody tr').each((_index, row) => {
+    const cells = $(row).find('td');
+    const ticker = normalizeTicker($(cells[0]).text());
+    if (!ticker) {
+      return;
+    }
+
+    const closePrice = toNumber($(cells[1]).text());
+    if (closePrice <= 0) {
+      return;
+    }
+
+    referenceByTicker.set(ticker, closePrice);
+  });
+
+  return referenceByTicker;
+}
+
+function pickLatestQuote(quotes) {
+  const list = Array.isArray(quotes) ? quotes : [];
+  if (list.length === 0) {
+    return null;
+  }
+
+  return [...list].sort((left, right) => {
+    const leftDate = new Date(left.sourceTimestamp || left.date || 0).getTime();
+    const rightDate = new Date(right.sourceTimestamp || right.date || 0).getTime();
+    return rightDate - leftDate;
+  })[0];
+}
+
+function resolveLatestPrice(quote) {
+  if (!quote) {
+    return 0;
+  }
+
+  return toNumber(quote.closePrice || quote.priceArs || quote.priceUsd);
+}
+
+function resolveAgeMinutes(quote) {
+  if (!quote) {
+    return null;
+  }
+
+  const timestamp = quote.sourceTimestamp || quote.date;
+  if (!timestamp) {
+    return null;
+  }
+
+  const ageMs = Date.now() - new Date(timestamp).getTime();
+  if (!Number.isFinite(ageMs)) {
+    return null;
+  }
+
+  return Math.max(0, Math.floor(ageMs / 60000));
 }
 
 async function main() {
-  const [appDollar, dolarApi, bluelytics, criptoya] = await Promise.all([
-    fetchJson(`${BASE_URL}/api/v1/market/dollar`),
-    fetchJson('https://dolarapi.com/v1/dolares'),
-    fetchJson('https://api.bluelytics.com.ar/v2/latest'),
-    fetchJson('https://criptoya.com/api/dolar'),
-  ]);
-
-  const appData = Array.isArray(appDollar?.data) ? appDollar.data : [];
-  const appMap = new Map(appData.map((quote) => [String(quote.type), quote]));
-  const referenceMap = toReferenceMap(dolarApi, bluelytics, criptoya);
-
   const failures = [];
+  const warnings = [];
   const checks = [];
 
-  for (const type of TYPES) {
-    const appQuote = appMap.get(type);
-    if (!appQuote) {
-      failures.push(`${type}: missing in backend response`);
-      continue;
-    }
+  const ravaHtml = await fetchText(RAVA_QUOTES_URL);
+  const ravaReference = parseRavaSnapshot(ravaHtml);
 
-    const refs = referenceMap.get(type) || [];
-    if (refs.length < 2) {
-      failures.push(`${type}: insufficient external references (${refs.length})`);
-      continue;
-    }
-
-    const buyMedian = median(refs.map((item) => item.buy));
-    const sellMedian = median(refs.map((item) => item.sell));
-    const appBuy = Number(appQuote.buyPrice || 0);
-    const appSell = Number(appQuote.sellPrice || 0);
-
-    const buyDeviationPct = buyMedian > 0 ? (Math.abs(appBuy - buyMedian) / buyMedian) * 100 : 0;
-    const sellDeviationPct = sellMedian > 0 ? (Math.abs(appSell - sellMedian) / sellMedian) * 100 : 0;
-
-    checks.push(
-      `${type}: devBuy=${buyDeviationPct.toFixed(2)}% devSell=${sellDeviationPct.toFixed(2)}% refs=${buildSourceDetails(refs)}`,
+  for (const ticker of MERV_TICKERS) {
+    const quotes = await fetchJson(
+      `${BASE_URL}/api/v1/assets/${encodeURIComponent(ticker)}/quotes?days=5`,
     );
 
-    if (buyDeviationPct > MAX_DEVIATION_PCT || sellDeviationPct > MAX_DEVIATION_PCT) {
+    const latest = pickLatestQuote(quotes);
+    const backendPrice = resolveLatestPrice(latest);
+    const priceAgeMinutes = resolveAgeMinutes(latest);
+
+    if (backendPrice <= 0) {
+      failures.push(`${ticker}: backend has no valid latest price`);
+      continue;
+    }
+
+    if (
+      priceAgeMinutes == null ||
+      priceAgeMinutes > DATA_STALE_THRESHOLD_MINUTES
+    ) {
       failures.push(
-        `${type}: deviation too high (buy=${buyDeviationPct.toFixed(2)}%, sell=${sellDeviationPct.toFixed(2)}%, limit=${MAX_DEVIATION_PCT}%)`,
+        `${ticker}: stale price age=${priceAgeMinutes ?? 'null'}m (limit=${DATA_STALE_THRESHOLD_MINUTES}m)`,
+      );
+    }
+
+    const referencePrice = ravaReference.get(ticker);
+    if (!referencePrice || referencePrice <= 0) {
+      warnings.push(`${ticker}: missing Rava reference`);
+      checks.push(
+        `${ticker}: backend=${backendPrice.toFixed(2)} age=${priceAgeMinutes ?? 'null'}m ref=n/a`,
+      );
+      continue;
+    }
+
+    const deviationPct =
+      (Math.abs(backendPrice - referencePrice) / referencePrice) * 100;
+
+    checks.push(
+      `${ticker}: backend=${backendPrice.toFixed(2)} ref=${referencePrice.toFixed(2)} age=${priceAgeMinutes ?? 'null'}m dev=${deviationPct.toFixed(2)}%`,
+    );
+
+    if (deviationPct > MAX_DEVIATION_PCT) {
+      failures.push(
+        `${ticker}: deviation ${deviationPct.toFixed(2)}% > ${MAX_DEVIATION_PCT}%`,
       );
     }
   }
 
   console.log(`QUALITY_BASE_URL=${BASE_URL}`);
-  console.log(`MAX_DEVIATION_PCT=${MAX_DEVIATION_PCT}`);
+  console.log(`RAVA_QUOTES_URL=${RAVA_QUOTES_URL}`);
+  console.log(`MARKET_QUALITY_MAX_DEVIATION_PCT=${MAX_DEVIATION_PCT}`);
+  console.log(`DATA_STALE_THRESHOLD_MINUTES=${DATA_STALE_THRESHOLD_MINUTES}`);
+
   for (const check of checks) {
     console.log(`CHECK ${check}`);
+  }
+
+  if (warnings.length > 0) {
+    console.log(`WARNINGS=${warnings.length}`);
+    for (const warning of warnings) {
+      console.log(`WARN ${warning}`);
+    }
   }
 
   if (failures.length > 0) {

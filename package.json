@@ -30,9 +30,11 @@
     "test:smoke:endpoints": "node scripts/endpoint-smoke.js",
     "test:quality:market": "node scripts/market-data-quality.js",
     "test:quality:assets": "node scripts/market-assets-quality.js",
+    "test:quality:providers": "node scripts/provider-health-check.js",
     "test:smoke:alert-flow": "node scripts/alert-flow-smoke.js",
+    "verify:data:quality": "npm run test:quality:market && npm run test:quality:assets && npm run test:quality:providers",
     "verify:backend": "npm run build && npm run lint && npm run test -- --runInBand",
-    "verify:backend:runtime": "npm run test:smoke:endpoints && npm run test:quality:market && npm run test:quality:assets"
+    "verify:backend:runtime": "npm run test:smoke:endpoints && npm run verify:data:quality"
   },
   "dependencies": {
     "@nestjs/cache-manager": "^3.1.0",
