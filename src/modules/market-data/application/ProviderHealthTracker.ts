@@ -20,6 +20,7 @@ export class ProviderHealthTracker {
     'mercados.ambito.com',
     'data912.com',
     'rava.com',
+    'open.bymadata.com.ar',
     'yahoo-finance',
     'alphavantage.co',
   ];

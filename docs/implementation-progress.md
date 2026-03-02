@@ -46,7 +46,7 @@ El MVP fue entregado con la siguiente cobertura:
 | R2-B01 | Provider Health Tracking | ✅ Completa | Endpoint `GET /api/v1/health/providers`, tracker + job + tests unit/e2e |
 | R2-B02 | Dólar — Nuevas fuentes y validación | ✅ Completa | `ArgentinaDatosClient` + `BCRAClient`, consenso extendido y validación cruzada oficial >2% |
 | R2-B03 | Acciones/CEDEARs — Scraper Rava | ✅ Completa | `RavaScraperClient` con robots/rate-limit/user-agent + tests con HTML fixture (sin activar como fuente principal aún) |
-| R2-B04 | Acciones/CEDEARs — Cliente BYMA Data | ⬜ No iniciada | — |
+| R2-B04 | Acciones/CEDEARs — Cliente BYMA Data | ✅ Completa | `BYMADataClient` con mapeo a formato interno + tests unitarios con fixture (sin activar como fuente principal aún) |
 | R2-B05 | Provider Scoring y Orquestación | ⬜ No iniciada | — |
 | R2-B06 | Catálogo Dinámico y Limpieza | ⬜ No iniciada | — |
 | R2-B07 | Renta Fija — TIR, TNA/TEA | ⬜ No iniciada | — |
@@ -91,3 +91,4 @@ El MVP fue entregado con la siguiente cobertura:
 | 2026-03-02 | R2-B01 completada: entidad/migración `provider_health`, `ProviderHealthTracker`, `ProviderHealthJob` (cron 5 min), integración en providers HTTP de market-data, endpoint `/api/v1/health/providers` y cobertura de tests unit/e2e. |
 | 2026-03-02 | R2-B02 completada: nuevos clientes `ArgentinaDatosClient` y `BCRAClient`, integración en `MultiSourceDollarClient` con consenso ampliado y validación cruzada del dólar oficial contra referencia BCRA (warning >2%), ajuste de job y tests unitarios de clientes/integración. |
 | 2026-03-02 | R2-B03 completada: implementación de `RavaScraperClient` (cheerio), validación de `robots.txt`, rate limiting configurable, `User-Agent` configurable, registro en provider health y tests unitarios con fixture HTML de cotizaciones. |
+| 2026-03-02 | R2-B04 completada: implementación de `BYMADataClient` para `open.bymadata.com.ar`, mapeo de payload a `MarketQuote`, registro en provider health y tests unitarios con fixture JSON de respuestas. |
