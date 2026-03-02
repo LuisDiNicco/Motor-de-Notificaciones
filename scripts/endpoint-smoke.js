@@ -3,7 +3,7 @@
 const BASE_URL = process.env.SMOKE_BASE_URL || 'http://localhost:3000';
 
 const publicEndpoints = [
-  ['GET', '/health'],
+  ['GET', '/api/v1/health'],
   ['GET', '/api/v1/assets?type=STOCK&page=1&limit=5'],
   ['GET', '/api/v1/assets/top/gainers?type=STOCK&limit=5'],
   ['GET', '/api/v1/assets/top/losers?type=STOCK&limit=5'],

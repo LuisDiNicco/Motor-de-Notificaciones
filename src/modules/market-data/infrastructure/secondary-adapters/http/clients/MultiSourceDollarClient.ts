@@ -285,7 +285,14 @@ export class MultiSourceDollarClient implements IDollarProvider {
         );
       }
     } catch {
-      this.logger.warn('BCRA official reference validation failed');
+      const isProduction =
+        this.configService.get<string>('NODE_ENV') === 'production';
+
+      if (isProduction) {
+        this.logger.warn('BCRA official reference validation failed');
+      } else {
+        this.logger.debug('BCRA official reference validation failed');
+      }
     }
   }
 

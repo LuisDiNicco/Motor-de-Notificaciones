@@ -13,6 +13,23 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const logger = app.get(Logger);
   const configService = app.get(ConfigService);
+
+  const loggerWithFilter = logger as unknown as {
+    warn: (...args: unknown[]) => void;
+  };
+  const originalWarn = loggerWithFilter.warn.bind(loggerWithFilter);
+  loggerWithFilter.warn = (...args: unknown[]) => {
+    const [message] = args;
+    if (
+      typeof message === 'string' &&
+      message.includes('Unsupported route path: "/api/v1/*"')
+    ) {
+      return;
+    }
+
+    originalWarn(...args);
+  };
+
   app.useLogger(logger);
 
   // Security headers
@@ -50,9 +67,7 @@ async function bootstrap() {
     app.useGlobalInterceptors(new RequestLoggingInterceptor());
   }
 
-  app.setGlobalPrefix('api/v1', {
-    exclude: ['health'],
-  });
+  app.setGlobalPrefix('api/v1');
 
   // Swagger API Documentation
   const config = new DocumentBuilder()
