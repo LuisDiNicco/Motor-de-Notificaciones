@@ -2,6 +2,22 @@ import { registerAs } from '@nestjs/config';
 
 export default registerAs('market', () => ({
   dolarApiUrl: process.env['DOLAR_API_URL'] || 'https://dolarapi.com/v1',
+  argentinaDatosBaseUrl:
+    process.env['ARGENTINA_DATOS_BASE_URL'] ||
+    'https://api.argentinadatos.com/v1',
+  bcraApiBaseUrl: process.env['BCRA_API_BASE_URL'] || 'https://api.bcra.gob.ar',
+  bluelyticsUrl:
+    process.env['BLUELYTICS_API_URL'] || 'https://api.bluelytics.com.ar/v2',
+  criptoYaUrl: process.env['CRIPTOYA_API_URL'] || 'https://criptoya.com/api',
+  dollarCrossValidationThresholdPercent: Number(
+    process.env['DOLLAR_CROSS_VALIDATION_THRESHOLD_PERCENT'] || 2,
+  ),
+  dollarConsensusMaxDeviationPct: Number(
+    process.env['DOLLAR_CONSENSUS_MAX_DEVIATION_PCT'] || 8,
+  ),
+  dollarSourceMaxAgeMinutes: Number(
+    process.env['DOLLAR_SOURCE_MAX_AGE_MINUTES'] || 2880,
+  ),
   alphaVantageApiKey: process.env['ALPHA_VANTAGE_API_KEY'] || '',
   chunkDelayMs: Number(process.env['MARKET_CHUNK_DELAY_MS'] || 300),
   quoteRetryAttempts: Number(process.env['MARKET_QUOTE_RETRY_ATTEMPTS'] || 3),

@@ -30,6 +30,8 @@ import { RiskProviderClient } from './infrastructure/secondary-adapters/http/cli
 import { Data912QuoteClient } from './infrastructure/secondary-adapters/http/clients/Data912QuoteClient';
 import { YahooFinanceClient } from './infrastructure/secondary-adapters/http/clients/YahooFinanceClient';
 import { MultiSourceDollarClient } from './infrastructure/secondary-adapters/http/clients/MultiSourceDollarClient';
+import { ArgentinaDatosClient } from './infrastructure/secondary-adapters/http/clients/ArgentinaDatosClient';
+import { BCRAClient } from './infrastructure/secondary-adapters/http/clients/BCRAClient';
 import { MarketController } from './infrastructure/primary-adapters/http/controllers/MarketController';
 import { AssetController } from './infrastructure/primary-adapters/http/controllers/AssetController';
 import { SearchController } from './infrastructure/primary-adapters/http/controllers/SearchController';
@@ -89,6 +91,8 @@ import { ProviderHealthTracker } from './application/ProviderHealthTracker';
       provide: DOLLAR_PROVIDER,
       useClass: MultiSourceDollarClient,
     },
+    ArgentinaDatosClient,
+    BCRAClient,
     {
       provide: RISK_PROVIDER,
       useClass: RiskProviderClient,

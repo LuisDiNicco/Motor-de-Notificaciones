@@ -26,7 +26,9 @@ export class DollarFetchJob {
         phase: status.marketOpen ? 'OPEN' : 'CLOSED',
       });
       const durationMs = Date.now() - startedAt;
-      this.logger.log(`Dollar data refreshed in ${durationMs}ms`);
+      this.logger.log(
+        `Dollar data refreshed with extended sources (ArgentinaDatos + BCRA validation) in ${durationMs}ms`,
+      );
     } catch (error) {
       const durationMs = Date.now() - startedAt;
       this.logger.error(
