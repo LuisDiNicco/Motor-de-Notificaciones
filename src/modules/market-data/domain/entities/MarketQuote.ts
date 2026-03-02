@@ -9,6 +9,9 @@ export class MarketQuote {
   public readonly closePrice: number | null;
   public readonly volume: number | null;
   public readonly changePct: number | null;
+  public readonly source: string | null;
+  public readonly sourceTimestamp: Date | null;
+  public readonly confidence: string | null;
   public readonly date: Date;
 
   constructor(
@@ -23,6 +26,9 @@ export class MarketQuote {
       closePrice = null,
       volume = null,
       changePct = null,
+      source = null,
+      sourceTimestamp = null,
+      confidence = null,
     }: {
       assetId?: string;
       priceArs?: number | null;
@@ -33,6 +39,9 @@ export class MarketQuote {
       closePrice?: number | null;
       volume?: number | null;
       changePct?: number | null;
+      source?: string | null;
+      sourceTimestamp?: Date | null;
+      confidence?: string | null;
     },
   ) {
     this.assetId = assetId;
@@ -44,6 +53,9 @@ export class MarketQuote {
     this.closePrice = closePrice;
     this.volume = volume;
     this.changePct = changePct;
+    this.source = source;
+    this.sourceTimestamp = sourceTimestamp;
+    this.confidence = confidence;
     this.date = date;
   }
 
@@ -58,6 +70,30 @@ export class MarketQuote {
       closePrice: this.closePrice,
       volume: this.volume,
       changePct: this.changePct,
+      source: this.source,
+      sourceTimestamp: this.sourceTimestamp,
+      confidence: this.confidence,
+    });
+  }
+
+  public withEnrichment(params: {
+    source?: string | null;
+    sourceTimestamp?: Date | null;
+    confidence?: string | null;
+  }): MarketQuote {
+    return new MarketQuote(this.date, {
+      assetId: this.assetId,
+      priceArs: this.priceArs,
+      priceUsd: this.priceUsd,
+      openPrice: this.openPrice,
+      highPrice: this.highPrice,
+      lowPrice: this.lowPrice,
+      closePrice: this.closePrice,
+      volume: this.volume,
+      changePct: this.changePct,
+      source: params.source ?? this.source,
+      sourceTimestamp: params.sourceTimestamp ?? this.sourceTimestamp,
+      confidence: params.confidence ?? this.confidence,
     });
   }
 }

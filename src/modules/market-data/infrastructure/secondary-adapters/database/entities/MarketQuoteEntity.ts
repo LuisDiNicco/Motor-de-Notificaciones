@@ -32,6 +32,15 @@ export class MarketQuoteEntity extends BaseEntity {
   @Column({ type: 'numeric', precision: 8, scale: 4, nullable: true })
   changePct!: number | null;
 
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  source!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  sourceTimestamp!: Date | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  confidence!: string | null;
+
   @Column({ type: 'date' })
   date!: string;
 }

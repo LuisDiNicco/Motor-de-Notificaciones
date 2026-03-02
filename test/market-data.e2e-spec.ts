@@ -145,6 +145,9 @@ describe('Market data endpoints (e2e)', () => {
         assetId: 'asset-1',
         closePrice: 1000,
         openPrice: 980,
+        source: 'data912.com',
+        sourceTimestamp: new Date('2024-01-01T00:00:00.000Z'),
+        confidence: 'HIGH',
       }),
     ]),
   };
@@ -274,6 +277,9 @@ describe('Market data endpoints (e2e)', () => {
       .expect(200);
     expect(Array.isArray(response.body)).toBe(true);
     expect(response.body[0].closePrice).toBe(1000);
+    expect(response.body[0].source).toBe('data912.com');
+    expect(response.body[0].sourceTimestamp).toBe('2024-01-01T00:00:00.000Z');
+    expect(response.body[0].confidence).toBe('HIGH');
   });
 
   it('/api/v1/health/providers (GET)', async () => {

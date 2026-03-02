@@ -105,6 +105,9 @@ export class MarketGateway {
     changePct: number;
     volume: number;
     timestamp: string;
+    source?: string;
+    sourceTimestamp?: string;
+    confidence?: string;
   }): void {
     const server = this.socketServer;
     if (!server) {

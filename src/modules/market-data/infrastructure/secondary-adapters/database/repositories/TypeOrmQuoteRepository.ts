@@ -17,6 +17,9 @@ interface RawLatestQuoteRow {
   closePrice: string | null;
   volume: string | null;
   changePct: string | null;
+  source: string | null;
+  sourceTimestamp: Date | string | null;
+  confidence: string | null;
   date: string;
 }
 
@@ -48,6 +51,9 @@ export class TypeOrmQuoteRepository implements IQuoteRepository {
         closePrice: quote.closePrice,
         volume: quote.volume != null ? String(Math.trunc(quote.volume)) : null,
         changePct: quote.changePct,
+        source: quote.source,
+        sourceTimestamp: quote.sourceTimestamp,
+        confidence: quote.confidence,
         date: this.toDateString(quote.date),
       }),
     );
@@ -125,6 +131,9 @@ export class TypeOrmQuoteRepository implements IQuoteRepository {
                 mq."closePrice",
                 mq."volume",
                 mq."changePct",
+                mq."source",
+                mq."sourceTimestamp",
+                mq."confidence",
                 mq."date"
             FROM "market_quotes" mq
             INNER JOIN "assets" a ON a."id" = mq."assetId"
@@ -151,6 +160,9 @@ export class TypeOrmQuoteRepository implements IQuoteRepository {
         closePrice: this.toNullableRawNumber(row.closePrice),
         volume: this.toNullableRawNumber(row.volume),
         changePct: this.toNullableRawNumber(row.changePct),
+        source: row.source,
+        sourceTimestamp: this.toNullableDate(row.sourceTimestamp),
+        confidence: row.confidence,
       });
 
       quote.id = row.id;
@@ -185,6 +197,9 @@ export class TypeOrmQuoteRepository implements IQuoteRepository {
       closePrice: this.toNullableNumber(entity.closePrice),
       volume: entity.volume != null ? Number(entity.volume) : null,
       changePct: this.toNullableNumber(entity.changePct),
+      source: entity.source,
+      sourceTimestamp: entity.sourceTimestamp,
+      confidence: entity.confidence,
     });
 
     quote.id = entity.id;
@@ -201,5 +216,18 @@ export class TypeOrmQuoteRepository implements IQuoteRepository {
     }
 
     return Number(value);
+  }
+
+  private toNullableDate(value: string | Date | null): Date | null {
+    if (value == null) {
+      return null;
+    }
+
+    const parsed = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    return parsed;
   }
 }

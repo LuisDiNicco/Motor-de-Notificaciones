@@ -43,6 +43,9 @@ export interface MarketQuoteUpdate {
   changePct: number;
   volume: number;
   timestamp: string;
+  source?: string;
+  sourceTimestamp?: string;
+  confidence?: string;
 }
 
 export interface FixedIncomeDetails {
@@ -754,6 +757,9 @@ export class MarketDataService {
               closePrice: quoteWithAsset.closePrice,
               changePct: quoteWithAsset.changePct,
               date: quoteWithAsset.date.toISOString(),
+              source: quoteWithAsset.source,
+              sourceTimestamp: quoteWithAsset.sourceTimestamp?.toISOString(),
+              confidence: quoteWithAsset.confidence,
             });
 
             updates.push({
@@ -763,6 +769,18 @@ export class MarketDataService {
               changePct: quoteWithAsset.changePct ?? 0,
               volume: quoteWithAsset.volume ?? 0,
               timestamp: quoteWithAsset.date.toISOString(),
+              ...(quoteWithAsset.source
+                ? { source: quoteWithAsset.source }
+                : {}),
+              ...(quoteWithAsset.sourceTimestamp
+                ? {
+                    sourceTimestamp:
+                      quoteWithAsset.sourceTimestamp.toISOString(),
+                  }
+                : {}),
+              ...(quoteWithAsset.confidence
+                ? { confidence: quoteWithAsset.confidence }
+                : {}),
             });
 
             return 1;
@@ -797,14 +815,23 @@ export class MarketDataService {
         assetType,
         yahooTicker,
       );
-      return orchestrated.quote;
+      return orchestrated.quote.withEnrichment({
+        source: orchestrated.source,
+        sourceTimestamp: orchestrated.timestamp,
+        confidence: orchestrated.confidence,
+      });
     }
 
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= this.quoteRetryAttempts; attempt += 1) {
       try {
-        return await this.quoteProvider.fetchQuote(yahooTicker);
+        const quote = await this.quoteProvider.fetchQuote(yahooTicker);
+        return quote.withEnrichment({
+          source: 'data912.com',
+          sourceTimestamp: new Date(),
+          confidence: 'MEDIUM',
+        });
       } catch (error) {
         lastError = error as Error;
 
@@ -818,7 +845,12 @@ export class MarketDataService {
     if (this.fallbackQuoteProvider) {
       try {
         this.logger.warn(`Using fallback quote provider for ${yahooTicker}`);
-        return await this.fallbackQuoteProvider.fetchQuote(yahooTicker);
+        const quote = await this.fallbackQuoteProvider.fetchQuote(yahooTicker);
+        return quote.withEnrichment({
+          source: 'yahoo-finance',
+          sourceTimestamp: new Date(),
+          confidence: 'LOW',
+        });
       } catch (fallbackError) {
         lastError = fallbackError as Error;
       }
